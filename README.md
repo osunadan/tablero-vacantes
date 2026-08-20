@@ -1,10 +1,25 @@
 # Tablero de Vacantes
 
-Tablero web que recolecta vacantes automáticamente desde una API pública de empleo, las deduplica, y las publica en una página donde se pueden marcar como **vista** o **postulada** — con el estado guardado entre visitas y dispositivos.
+Tablero web que recolecta vacantes automáticamente desde una API pública de empleo, las deduplica, y las publica en una página donde se pueden marcar como **vista** o **postulada**, con el estado guardado entre visitas y dispositivos.
 
 Nace para un puesto y ciudad específicos (Marketing/Brand Manager, CDMX), pero está construido para replicarse con cualquier otro puesto o industria cambiando solo la configuración de búsqueda.
 
 **Demo en producción:** https://tablero-vacantes-marketing.vercel.app
+
+---
+
+## Decisiones de diseño
+
+**API pública, no scraping.** Leer el HTML de LinkedIn/Indeed con un bot es frágil (se rompe con cada rediseño del sitio) y legalmente gris. Se eligió [Adzuna](https://developer.adzuna.com/) porque, además de tener cobertura real en México, expone un endpoint de solo-conteo, permite sondear cuántos resultados reales existen con una configuración de búsqueda *antes* de comprometerse a ella, sin gastar cuota de prueba y error.
+
+**Se diseñó con datos de muestra antes de conectar la API real.** La interfaz se construyó y se validó visualmente primero (tarjetas, colores, el toggle de "vista"/"postulada"), sin depender de que Adzuna, Redis o Vercel ya existieran. Eso separa "¿se ve bien?" de "¿ya conecta de verdad?" y evita gastar cuota de API en cada recarga mientras se itera el diseño.
+
+**Actualización optimista.** Marcar una vacante como "vista" o "postulada" se siente instantáneo: la UI cambia antes de esperar la confirmación del servidor, y revierte sola si el guardado falla.
+
+**Estado compartido, no por usuario.**: No hay login, cualquiera con la URL ve y puede marcar las mismas vacantes. Es una decisión deliberada ya que se penso en un principio como un tablero de una sola persona (mi pareja), no un producto multiusuario; el trade-off es explícito, no un descuido. Lo mantengo por ahora, con idea de que cambie en otro momento
+
+> [!TIP]
+> **¿Y si alguien clona este repo?** Puede leer y modificar el código en su copia local, pero no puede correrlo contra los datos reales: las credenciales de Redis y Adzuna nunca están en el repo (viven solo como variables de entorno en Vercel). Para que le funcione de verdad, necesitaría su propia cuenta de Vercel, su propio Redis y sus propias llaves de Adzuna, lo que le daría su propio tablero, aislado del mío, no acceso al mío.
 
 ---
 
@@ -23,9 +38,9 @@ graph TD
     MARK --> KV
 ```
 
-Un cron diario llama a la [API de Adzuna](https://developer.adzuna.com/), filtra por ubicación (usando la jerarquía estructurada de zona geográfica que la propia API expone, no texto libre), deduplica contra lo que ya se guardó, y persiste en Redis. La página lee de ahí — no llama a la API externa en cada visita — y cada marca de "vista"/"postulada" se guarda en el mismo lugar, con actualización optimista en la UI.
+Un cron diario llama a la [API de Adzuna](https://developer.adzuna.com/), filtra por ubicación (usando la jerarquía estructurada de zona geográfica que la propia API expone, no texto libre), deduplica contra lo que ya se guardó, y persiste en Redis. La página lee de ahí, no llama a la API externa en cada visita, y cada marca de "vista"/"postulada" se guarda en el mismo lugar, con actualización optimista en la UI.
 
-Antes de comprometerse a esta configuración de búsqueda, se hizo un sondeo de volumen (llamadas baratas de solo-conteo) para confirmar cuántos resultados reales existían con distintas combinaciones de parámetros — ver `scripts/sondeo-volumen.mjs`.
+Antes de comprometerme a esta configuración de búsqueda, hice un sondeo de volumen (llamadas baratas de solo-conteo) para confirmar cuántos resultados reales existían con distintas combinaciones de parámetros, ver `scripts/sondeo-volumen.mjs`.
 
 ## Stack
 
@@ -79,5 +94,9 @@ El cron (`vercel.json`) se registra solo en cada deploy — no requiere configur
 
 ## Límites conocidos
 
-- Adzuna no separa "requisitos" de "descripción" — es un solo campo de texto truncado.
+- Adzuna no separa "requisitos" de "descripción", es un solo campo de texto truncado.
 - La detección de vacantes remotas depende de que el título o la descripción lo mencionen explícitamente (la API no trae una bandera estructurada para esto).
+
+## Licencia
+
+© 2026 Daniel Osuna. Código de portafolio, se puede ver y evaluar, no reusar sin permiso.
