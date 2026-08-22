@@ -1,10 +1,19 @@
 import type { Vacante } from "@/lib/types";
 import { obtenerVacantes } from "@/lib/kv";
 import { VacancyBoard } from "@/components/VacancyBoard";
+import DemoHome from "./DemoHome";
 
 export const revalidate = 3600;
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ puesto?: string; ubicacion?: string }>;
+}) {
+  if (process.env.DEMO_MODE === "1") {
+    return <DemoHome searchParams={await searchParams} />;
+  }
+
   let vacantes: Vacante[] = [];
   let error: string | null = null;
 

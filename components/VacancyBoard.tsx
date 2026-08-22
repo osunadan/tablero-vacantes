@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Vacante } from "@/lib/types";
+import { leerEstadosLocales, persistirEnLocalStorage } from "@/lib/persistencia-local";
 import { VacancyCard } from "./VacancyCard";
 
 type Filtro = "todas" | "nuevas" | "vistas" | "postuladas";
@@ -51,23 +52,50 @@ function StatTile({
   );
 }
 
-export function VacancyBoard({ vacantesIniciales }: { vacantesIniciales: Vacante[] }) {
+async function persistirEnServidor(
+  id: string,
+  campo: "vista" | "postulada",
+  valor: boolean
+): Promise<boolean> {
+  const res = await fetch("/api/marcar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, campo, valor }),
+  });
+  return res.ok;
+}
+
+export function VacancyBoard({
+  vacantesIniciales,
+  modo = "servidor",
+}: {
+  vacantesIniciales: Vacante[];
+  // "local" es el modo demo: las marcas se guardan en localStorage del
+  // visitante, no en el Redis real. Un string (no una función) porque
+  // DemoHome es un Server Component y las funciones no cruzan ese límite.
+  modo?: "servidor" | "local";
+}) {
   const [vacantes, setVacantes] = useState(vacantesIniciales);
   const [filtro, setFiltro] = useState<Filtro>("todas");
+
+  useEffect(() => {
+    if (modo !== "local") return;
+    const estados = leerEstadosLocales();
+    setVacantes((prev) => prev.map((v) => (estados[v.id] ? { ...v, ...estados[v.id] } : v)));
+  }, [modo]);
 
   const cambiarEstado = async (id: string, campo: "vista" | "postulada", valor: boolean) => {
     setVacantes((prev) =>
       prev.map((v) => (v.id === id ? { ...v, [campo]: valor } : v))
     );
 
-    const res = await fetch("/api/marcar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, campo, valor }),
-    });
+    const ok =
+      modo === "local"
+        ? await persistirEnLocalStorage(id, campo, valor)
+        : await persistirEnServidor(id, campo, valor);
 
-    if (!res.ok) {
-      // Revertir el cambio optimista si no se pudo guardar en KV.
+    if (!ok) {
+      // Revertir el cambio optimista si no se pudo guardar.
       setVacantes((prev) =>
         prev.map((v) => (v.id === id ? { ...v, [campo]: !valor } : v))
       );

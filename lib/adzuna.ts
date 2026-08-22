@@ -28,7 +28,8 @@ interface AdzunaRespuesta {
 async function pedirPagina(
   termino: string,
   pagina: number,
-  diasMax: number
+  diasMax: number,
+  ubicacion?: string
 ): Promise<AdzunaRespuesta> {
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
@@ -41,6 +42,10 @@ async function pedirPagina(
   url.searchParams.set("app_key", appKey);
   url.searchParams.set("results_per_page", String(RESULTADOS_POR_PAGINA));
   url.searchParams.set("what", termino);
+  // Solo el modo demo pasa ubicación: usa el filtro `where` nativo de Adzuna
+  // en vez de esUbicacionValida(), que está pensada para la jerarquía
+  // CDMX+EdoMex del estudio real, no para ciudades arbitrarias.
+  if (ubicacion) url.searchParams.set("where", ubicacion);
   // Sin title_only: el sondeo de volumen (2026-08-17) mostró que con title_only=1
   // estos 4 términos devuelven casi 0 resultados en México (nadie titula su
   // vacante literalmente "Marketing Manager" en inglés). Sin la restricción,
@@ -95,6 +100,36 @@ function esUbicacionValida(area: string[] | undefined, titulo: string, descripci
   return PATRON_REMOTO.test(normalizar(`${titulo} ${descripcion}`));
 }
 
+// Compartida entre la recolección real (filtra por CDMX+EdoMex+remoto) y la
+// búsqueda en vivo del demo (confía en el `where` que ya mandó a Adzuna).
+function agregarResultados(
+  datos: AdzunaRespuesta,
+  idsVistos: Set<string>,
+  huellasVistas: Set<string>,
+  vacantes: Omit<Vacante, "vista" | "postulada">[],
+  filtrarUbicacion: boolean
+): void {
+  for (const r of datos.results) {
+    if (idsVistos.has(r.id)) continue;
+    if (filtrarUbicacion && !esUbicacionValida(r.location?.area, r.title, r.description)) continue;
+    const h = huella(r.company?.display_name ?? "", r.title);
+    if (huellasVistas.has(h)) continue;
+
+    idsVistos.add(r.id);
+    huellasVistas.add(h);
+    vacantes.push({
+      id: r.id,
+      titulo: r.title,
+      empresa: r.company?.display_name ?? "Empresa no especificada",
+      ubicacion: r.location?.display_name ?? "México",
+      descripcion: r.description,
+      fecha: r.created,
+      url: r.redirect_url,
+      fuente: "Adzuna",
+    });
+  }
+}
+
 export async function recolectarVacantes(
   diasMax: number,
   topeRegistros = 800
@@ -110,25 +145,7 @@ export async function recolectarVacantes(
       const datos = await pedirPagina(termino, pagina, diasMax);
       if (!datos.results?.length) break;
 
-      for (const r of datos.results) {
-        if (idsVistos.has(r.id)) continue;
-        if (!esUbicacionValida(r.location?.area, r.title, r.description)) continue;
-        const h = huella(r.company?.display_name ?? "", r.title);
-        if (huellasVistas.has(h)) continue;
-
-        idsVistos.add(r.id);
-        huellasVistas.add(h);
-        vacantes.push({
-          id: r.id,
-          titulo: r.title,
-          empresa: r.company?.display_name ?? "Empresa no especificada",
-          ubicacion: r.location?.display_name ?? "México",
-          descripcion: r.description,
-          fecha: r.created,
-          url: r.redirect_url,
-          fuente: "Adzuna",
-        });
-      }
+      agregarResultados(datos, idsVistos, huellasVistas, vacantes, true);
 
       if (datos.results.length < RESULTADOS_POR_PAGINA) break;
       pagina += 1;
@@ -136,5 +153,19 @@ export async function recolectarVacantes(
     }
   }
 
+  return vacantes;
+}
+
+// Modo demo: un solo término, una sola página, sin cron ni Redis — se llama
+// al momento desde un Server Component leyendo searchParams. La ubicación se
+// manda tal cual a Adzuna vía `where` (ver pedirPagina), no se filtra aquí.
+export async function buscarVacantesEnVivo(
+  puesto: string,
+  ubicacion: string | undefined,
+  diasMax = 30
+): Promise<Omit<Vacante, "vista" | "postulada">[]> {
+  const datos = await pedirPagina(puesto, 1, diasMax, ubicacion);
+  const vacantes: Omit<Vacante, "vista" | "postulada">[] = [];
+  agregarResultados(datos, new Set(), new Set(), vacantes, false);
   return vacantes;
 }
