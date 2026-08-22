@@ -1,10 +1,27 @@
-# Tablero de Vacantes
+<h1 align="center" style="margin:0;">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="media/logo/logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="media/logo/logo-oscuro.svg">
+    <img alt="Tablero de Vacantes" src="media/logo/logo-oscuro.svg" height="56">
+  </picture>
+</h1>
+
+<h3 align="center" style="margin: 0; margin-top: 0;">
+Tablero personal que recolecta vacantes automáticamente, todos los días, y avisa solo lo nuevo.
+</h3>
+
+---
+
+<p align="center">
+  <!-- TODO: reemplazar por el GIF real cuando esté listo -->
+  <!-- <img src="media/demo.gif" alt="Tablero de Vacantes en uso" width="720"> -->
+</p>
 
 Tablero web que recolecta vacantes automáticamente desde una API pública de empleo, las deduplica, y las publica en una página donde se pueden marcar como **vista** o **postulada**, con el estado guardado entre visitas y dispositivos.
 
 Nace para un puesto y ciudad específicos (Marketing/Brand Manager, CDMX), pero está construido para replicarse con cualquier otro puesto o industria cambiando solo la configuración de búsqueda.
 
-**Demo en producción:** https://tablero-vacantes-marketing.vercel.app
+**Demo pública:** https://tablero-vacantes-demo.vercel.app — busca tu propio puesto y ciudad, en vivo contra Adzuna. Es una versión ligera a propósito: sin cron ni base de datos compartida, tus marcas de "vista"/"postulada" se guardan solo en tu navegador. El tablero real (privado, con datos de una sola usuaria) vive en otra URL protegida con contraseña.
 
 ---
 
@@ -16,7 +33,7 @@ Nace para un puesto y ciudad específicos (Marketing/Brand Manager, CDMX), pero 
 
 **Actualización optimista.** Marcar una vacante como "vista" o "postulada" se siente instantáneo: la UI cambia antes de esperar la confirmación del servidor, y revierte sola si el guardado falla.
 
-**Estado compartido, no por usuario.**: No hay login, cualquiera con la URL ve y puede marcar las mismas vacantes. Es una decisión deliberada ya que se penso en un principio como un tablero de una sola persona (mi pareja), no un producto multiusuario; el trade-off es explícito, no un descuido. Lo mantengo por ahora, con idea de que cambie en otro momento
+**Un tablero, no un producto multiusuario — resuelto con dos deploys, no con un sistema de cuentas.** Nació pensado para una sola persona (mi pareja), sin login ni separación por usuario: cualquiera con la URL ve y marca las mismas vacantes. Eso funcionaba bien hasta que el link de este mismo README apuntó a esa URL real — cualquiera que leyera el repo podía pisar sus marcas. La solución no fue construir autenticación multiusuario para un caso de uso de una sola persona: el tablero real quedó protegido con una contraseña simple (`proxy.ts`, activo solo si existe la variable `SITE_PASSWORD`), y el link público de este README apunta a un segundo proyecto — el demo de arriba — con su propia cuota de Adzuna, sin Redis y sin cron, donde cada quien busca lo suyo y sus marcas viven solo en su navegador.
 
 > [!TIP]
 > **¿Y si alguien clona este repo?** Puede leer y modificar el código en su copia local, pero no puede correrlo contra los datos reales: las credenciales de Redis y Adzuna nunca están en el repo (viven solo como variables de entorno en Vercel). Para que le funcione de verdad, necesitaría su propia cuenta de Vercel, su propio Redis y sus propias llaves de Adzuna, lo que le daría su propio tablero, aislado del mío, no acceso al mío.
@@ -71,6 +88,8 @@ Variables de entorno (`.env.local`):
 | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Registrando una aplicación en [developer.adzuna.com](https://developer.adzuna.com/) |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Se generan solas al conectar Redis desde el Marketplace de Vercel (Storage → Marketplace → Redis) |
 | `CRON_SECRET` | Un valor aleatorio propio (`openssl rand -hex 32`) — Vercel Cron lo manda como header `Authorization` en cada llamada automática |
+| `SITE_PASSWORD` | Opcional — solo el deploy real la define. Si existe, `proxy.ts` exige login antes de ver el tablero; si no existe (como en el demo), no hay gate |
+| `DEMO_MODE` | Opcional — solo el deploy demo la define como `1`. Cambia `/` por el formulario de búsqueda en vivo (`app/DemoHome.tsx`), sin leer ni escribir Redis |
 
 ```bash
 npm run dev       # desarrollo local — http://localhost:3000
