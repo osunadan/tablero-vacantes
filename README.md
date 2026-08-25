@@ -13,8 +13,7 @@ Tablero personal que recolecta vacantes automáticamente, todos los días, y avi
 ---
 
 <p align="center">
-  <!-- TODO: reemplazar por el GIF real cuando esté listo -->
-  <!-- <img src="media/demo.gif" alt="Tablero de Vacantes en uso" width="720"> -->
+  <img src="media/video-demo/demo.gif" alt="Tablero de Vacantes en uso" width="720">
 </p>
 
 Tablero web que recolecta vacantes automáticamente desde una API pública de empleo, las deduplica, y las publica en una página donde se pueden marcar como **vista** o **postulada**, con el estado guardado entre visitas y dispositivos.
