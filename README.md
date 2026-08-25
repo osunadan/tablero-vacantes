@@ -20,19 +20,19 @@ Tablero web que recolecta vacantes automáticamente desde una API pública de em
 
 Nace para un puesto y ciudad específicos (Marketing/Brand Manager, CDMX), pero está construido para replicarse con cualquier otro puesto o industria cambiando solo la configuración de búsqueda.
 
-**Demo pública:** https://tablero-vacantes-demo.vercel.app — busca tu propio puesto y ciudad, en vivo contra Adzuna. Es una versión ligera a propósito: sin cron ni base de datos compartida, tus marcas de "vista"/"postulada" se guardan solo en tu navegador. El tablero real (privado, con datos de una sola usuaria) vive en otra URL protegida con contraseña.
+**Demo pública:** https://tablero-vacantes-demo.vercel.app busca tu propio puesto y ciudad, en vivo contra Adzuna. Es una versión ligera a propósito: sin cron ni base de datos compartida, tus marcas de "vista"/"postulada" se guardan solo en tu navegador. El tablero real (privado, con datos de una sola usuaria) vive en otra URL protegida con contraseña.
 
 ---
 
 ## Decisiones de diseño
 
-**API pública, no scraping.** Leer el HTML de LinkedIn/Indeed con un bot es frágil (se rompe con cada rediseño del sitio) y legalmente gris. Se eligió [Adzuna](https://developer.adzuna.com/) porque, además de tener cobertura real en México, expone un endpoint de solo-conteo, permite sondear cuántos resultados reales existen con una configuración de búsqueda *antes* de comprometerse a ella, sin gastar cuota de prueba y error.
+**API pública, no scraping**: Leer el HTML de LinkedIn/Indeed con un bot es frágil (se rompe con cada rediseño del sitio) y legalmente gris. Eligí [Adzuna](https://developer.adzuna.com/) porque, además de tener cobertura real en México, expone un endpoint de solo-conteo, permite sondear cuántos resultados reales existen con una configuración de búsqueda *antes* de comprometerse a ella, sin gastar cuota de prueba y error.
 
-**Se diseñó con datos de muestra antes de conectar la API real.** La interfaz se construyó y se validó visualmente primero (tarjetas, colores, el toggle de "vista"/"postulada"), sin depender de que Adzuna, Redis o Vercel ya existieran. Eso separa "¿se ve bien?" de "¿ya conecta de verdad?" y evita gastar cuota de API en cada recarga mientras se itera el diseño.
+**Se diseñó con datos de muestra antes de conectar la API real**: La interfaz se construyó y se validó visualmente primero (tarjetas, colores, el toggle de "vista"/"postulada"), sin depender de que Adzuna, Redis o Vercel ya existieran. Eso separa "¿se ve bien?" de "¿ya conecta de verdad?" y evita gastar cuota de API en cada recarga mientras se itera el diseño.
 
 **Actualización optimista.** Marcar una vacante como "vista" o "postulada" se siente instantáneo: la UI cambia antes de esperar la confirmación del servidor, y revierte sola si el guardado falla.
 
-**Un tablero, no un producto multiusuario — resuelto con dos deploys, no con un sistema de cuentas.** Nació pensado para una sola persona (mi pareja), sin login ni separación por usuario: cualquiera con la URL ve y marca las mismas vacantes. Eso funcionaba bien hasta que el link de este mismo README apuntó a esa URL real — cualquiera que leyera el repo podía pisar sus marcas. La solución no fue construir autenticación multiusuario para un caso de uso de una sola persona: el tablero real quedó protegido con una contraseña simple (`proxy.ts`, activo solo si existe la variable `SITE_PASSWORD`), y el link público de este README apunta a un segundo proyecto — el demo de arriba — con su propia cuota de Adzuna, sin Redis y sin cron, donde cada quien busca lo suyo y sus marcas viven solo en su navegador.
+**Un tablero, no un producto multiusuario, resuelto con dos deploys, no con un sistema de cuentas.** Nació pensado para una sola persona (mi novia), sin login ni separación por usuario. Pero para compartirlo, tener un demo y que sea fácilmente replicable la solución no fue construir autenticación multiusuario para un caso de uso de una sola persona, fue hacer un segundo proyecto, el demo de arriba, con su propia cuota de Adzuna, sin Redis y sin cron, donde cada quien busca lo suyo y sus marcas viven solo en su navegador.
 
 > [!TIP]
 > **¿Y si alguien clona este repo?** Puede leer y modificar el código en su copia local, pero no puede correrlo contra los datos reales: las credenciales de Redis y Adzuna nunca están en el repo (viven solo como variables de entorno en Vercel). Para que le funcione de verdad, necesitaría su propia cuenta de Vercel, su propio Redis y sus propias llaves de Adzuna, lo que le daría su propio tablero, aislado del mío, no acceso al mío.
@@ -102,7 +102,7 @@ vercel link       # conecta esta carpeta a un proyecto de Vercel
 vercel --prod     # deploy a producción
 ```
 
-El cron (`vercel.json`) se registra solo en cada deploy — no requiere configuración aparte en el dashboard.
+El cron (`vercel.json`) se registra solo en cada deploy, no requiere configuración aparte en el dashboard.
 
 ## Personalizar para otro puesto o industria
 
